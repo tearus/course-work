@@ -61,3 +61,11 @@ if __name__ == "__main__":
     # Визуализация графа с сеткой из scipy
     plt.figure(figsize=(10, 5))  # Создаем новую фигуру для сетки из scipy
     plot_graph(graph, triangle_type="scipy", color='purple')
+    with open('points.txt', 'w') as file:
+        for point in graph._points:
+            file.write(str(point.pos()) + '\n')
+
+    with open('triangle.txt', 'w') as file:
+        for triangle in graph._triangles:
+            file.write(str(triangle._a.pos())+ ',' + str(triangle._b.pos())
+                       + ',' + str(triangle._c.pos()) + '\n')
