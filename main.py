@@ -28,7 +28,7 @@ def plot_graph(graph, triangle_type="custom", color=None, adding_circles=True):
     if adding_circles == True:
         for triangle in graph._triangles:
             cir = circumcircle([triangle._a.pos(), triangle._b.pos(), triangle._c.pos()])
-            circle = plt.Circle(cir[0], cir[1], fill=False, color='blue')
+            circle = plt.Circle(cir[0], cir[1], fill=False, color='green')
             ax.add_artist(circle)
 
     ax.set_xlim(min(point.pos()[0] for point in graph._points), max(point.pos()[0] for point in graph._points))
@@ -44,7 +44,7 @@ if __name__ == "__main__":
     random.seed(2)
 
     print("Adding points...")
-    for x in range(0, 50):
+    for x in range(0, 10):
         while graph.addPoint(Point(random.randint(50, 974), random.randint(50, 718))) is False:
             print("Couldn't add point")
 
