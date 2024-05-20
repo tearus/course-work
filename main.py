@@ -56,7 +56,7 @@ if __name__ == "__main__":
     delaunay_sc = Delaunay(points)
 
     plt.figure(figsize=(10, 5))  # Создаем новую фигуру для пользовательской сетки
-    plot_graph(graph, triangle_type="custom", color='green')
+    plot_graph(graph, triangle_type="custom", color='green',adding_circles=False)
 
     # Визуализация графа с сеткой из scipy
     plt.figure(figsize=(10, 5))  # Создаем новую фигуру для сетки из scipy
