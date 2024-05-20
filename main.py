@@ -1,22 +1,17 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from Delaunay import Graph, Point, Edge, Triangle
+from Delaunay import Graph, Point, Edge, Triangle, circumcircle
 import random
 from scipy.spatial import Delaunay
+from mpl_toolkits.mplot3d import Axes3D
 
 
-def plot_graph(graph, triangle_type="custom", color=None):
+def plot_graph(graph, triangle_type="custom", color=None, adding_circles=True):
     fig, ax = plt.subplots()
 
     # Рисуем точки
     for point in graph._points:
         ax.scatter(*point.pos(), color='blue')
-
-    # Рисуем ребра
-    for edge in graph._edges:
-        x_coords = [edge._a.pos()[0], edge._b.pos()[0]]
-        y_coords = [edge._a.pos()[1], edge._b.pos()[1]]
-        ax.plot(x_coords, y_coords, color=color)
 
     # Рисуем треугольники
     if triangle_type == "custom":
@@ -24,12 +19,17 @@ def plot_graph(graph, triangle_type="custom", color=None):
             x_coords = [triangle._a.pos()[0], triangle._b.pos()[0], triangle._c.pos()[0]]
             y_coords = [triangle._a.pos()[1], triangle._b.pos()[1], triangle._c.pos()[1]]
             ax.fill(x_coords, y_coords, color=color, alpha=0.5)
-            # Рисуем треугольники
+
     elif triangle_type == "scipy":
         for simplex in delaunay_sc.simplices:
             x_coords = [points[simplex[0]][0], points[simplex[1]][0], points[simplex[2]][0]]
             y_coords = [points[simplex[0]][1], points[simplex[1]][1], points[simplex[2]][1]]
             ax.fill(x_coords, y_coords, color=color, alpha=0.5)
+    if adding_circles == True:
+        for triangle in graph._triangles:
+            cir = circumcircle([triangle._a.pos(), triangle._b.pos(), triangle._c.pos()])
+            circle = plt.Circle(cir[0], cir[1], fill=False, color='green',linewidth=0.5)
+            ax.add_artist(circle)
 
     ax.set_xlim(min(point.pos()[0] for point in graph._points), max(point.pos()[0] for point in graph._points))
     ax.set_ylim(min(point.pos()[1] for point in graph._points), max(point.pos()[1] for point in graph._points))
@@ -56,16 +56,37 @@ if __name__ == "__main__":
     delaunay_sc = Delaunay(points)
 
     plt.figure(figsize=(10, 5))  # Создаем новую фигуру для пользовательской сетки
-    plot_graph(graph, triangle_type="custom", color='green')
+    plot_graph(graph, triangle_type="custom", color='green', adding_circles=False)
+    plot_graph(graph, triangle_type="custom", color='green', adding_circles=True)
 
-    # Визуализация графа с сеткой из scipy
-    plt.figure(figsize=(10, 5))  # Создаем новую фигуру для сетки из scipy
-    plot_graph(graph, triangle_type="scipy", color='purple')
+    # Визуализация триангуляции из scipy
+    plt.figure(figsize=(10, 5))
+    plot_graph(graph, triangle_type="scipy", color='purple', adding_circles=False)
+    plot_graph(graph, triangle_type="scipy", color='purple', adding_circles=True)
     with open('points.txt', 'w') as file:
         for point in graph._points:
             file.write(str(point.pos()) + '\n')
 
     with open('triangle.txt', 'w') as file:
         for triangle in graph._triangles:
-            file.write(str(triangle._a.pos())+ ',' + str(triangle._b.pos())
+            file.write(str(triangle._a.pos()) + ',' + str(triangle._b.pos())
                        + ',' + str(triangle._c.pos()) + '\n')
+
+# Генерация случайных точек
+np.random.seed(1)  # Для воспроизводимости результата
+points = np.random.rand(100, 3)
+
+# Построение треугольников Делоне
+tri = Delaunay(points)
+
+# Визуализация
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+# Рисование точек
+ax.scatter(points[:, 0], points[:, 1], points[:, 2], alpha=0.5)
+
+for s in tri.simplices:
+    ax.plot_trisurf(points[s, 0], points[s, 1], points[s, 2], alpha=0.5, linewidths=0, antialiased=False,
+                    edgecolor='none')
+
+plt.show()
