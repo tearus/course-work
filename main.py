@@ -28,7 +28,7 @@ def plot_graph(graph, triangle_type="custom", color=None, adding_circles=True):
     if adding_circles == True:
         for triangle in graph._triangles:
             cir = circumcircle([triangle._a.pos(), triangle._b.pos(), triangle._c.pos()])
-            circle = plt.Circle(cir[0], cir[1], fill=False, color='green')
+            circle = plt.Circle(cir[0], cir[1], fill=False, color='green',linewidth=0.5)
             ax.add_artist(circle)
 
     ax.set_xlim(min(point.pos()[0] for point in graph._points), max(point.pos()[0] for point in graph._points))
@@ -56,11 +56,13 @@ if __name__ == "__main__":
     delaunay_sc = Delaunay(points)
 
     plt.figure(figsize=(10, 5))  # Создаем новую фигуру для пользовательской сетки
-    plot_graph(graph, triangle_type="custom", color='green',adding_circles=False)
+    plot_graph(graph, triangle_type="custom", color='green', adding_circles=False)
+    plot_graph(graph, triangle_type="custom", color='green', adding_circles=True)
 
-    # Визуализация графа с сеткой из scipy
-    plt.figure(figsize=(10, 5))  # Создаем новую фигуру для сетки из scipy
-    plot_graph(graph, triangle_type="scipy", color='purple')
+    # Визуализация триангуляции из scipy
+    plt.figure(figsize=(10, 5))
+    plot_graph(graph, triangle_type="scipy", color='purple', adding_circles=False)
+    plot_graph(graph, triangle_type="scipy", color='purple', adding_circles=True)
     with open('points.txt', 'w') as file:
         for point in graph._points:
             file.write(str(point.pos()) + '\n')
