@@ -1,11 +1,7 @@
-import math
-import operator
 import re
 import matplotlib.pyplot as plt
-import numpy as np
-from functools import reduce
-from itertools import combinations
 from collections import namedtuple
+from scipy.spatial import Voronoi, voronoi_plot_2d
 
 Point = namedtuple('Point', 'x y')
 Triangle = namedtuple('Triangle', 'v1 v2 v3')
@@ -68,72 +64,80 @@ def find_common_edges(triangles: list[Triangle]) -> list[tuple[Triangle, Triangl
     return result
 
 
-def get_edges(triangle: Triangle) -> list[Edge]:
-    return [
-        Edge(triangle.v1, triangle.v2),
-        Edge(triangle.v2, triangle.v3),
-        Edge(triangle.v3, triangle.v1)
-    ]
+# def get_edges(triangle: Triangle) -> list[Edge]:
+#     return [
+#         Edge(triangle.v1, triangle.v2),
+#         Edge(triangle.v2, triangle.v3),
+#         Edge(triangle.v3, triangle.v1)
+#     ]
 
 
-def edge_sorted(edge: Edge) -> Edge:
-    return edge if edge.a < edge.b else Edge(edge.b, edge.a)
+# def edge_sorted(edge: Edge) -> Edge:
+#     return edge if edge.a < edge.b else Edge(edge.b, edge.a)
+#
+#
+# def get_edges_flat(triangles: list[Triangle]) -> list[Edge]:
+#     edges = [get_edges(triangle) for triangle in triangles]
+#     return reduce(operator.iconcat, edges, [])
 
 
-def get_edges_flat(triangles: list[Triangle]) -> list[Edge]:
-    edges = [get_edges(triangle) for triangle in triangles]
-    return reduce(operator.iconcat, edges, [])
-
-
-def find_external_edges(triangles: list[Triangle]) -> list[Edge]:
-    edges = get_edges_flat(triangles)
-    sorted_edges = [edge_sorted(edge) for edge in edges]
-    unique_edges_set = {tuple(edge) for edge in sorted_edges}
-    duplicates_count = len(sorted_edges) - len(unique_edges_set)
-
-    return [edge for edge in sorted_edges if sorted_edges.count(edge) == 1] \
-        if duplicates_count > 0 \
-        else list(edges)
-
-
-def midpoint(point1: Point, point2: Point) -> Point:
-    return Point((point1.x + point2.x) / 2, (point1.y + point2.y) / 2)
+# def find_external_edges(triangles: list[Triangle]) -> list[Edge]:
+#     edges = get_edges_flat(triangles)
+#     sorted_edges = [edge_sorted(edge) for edge in edges]
+#     unique_edges_set = {tuple(edge) for edge in sorted_edges}
+#     duplicates_count = len(sorted_edges) - len(unique_edges_set)
+#
+#     return [edge for edge in sorted_edges if sorted_edges.count(edge) == 1] \
+#         if duplicates_count > 0 \
+#         else list(edges)
+#
+#
+# def midpoint(point1: Point, point2: Point) -> Point:
+#     return Point((point1.x + point2.x) / 2, (point1.y + point2.y) / 2)
 
 
 def main():
     triangles = read_triangle_coordinates('triangle.txt')
     points = read_points_from_file('points.txt')
-
-    plt.figure(figsize=(10, 8))
-    plt.scatter([p.x for p in points], [p.y for p in points], color='blue', label='Точки')
-    plt.title('Визуализация точек и центров окружностей')
-    plt.xlabel('X')
-    plt.ylabel('Y')
-
+    center = []
     for tri in triangles:
-        center = circumcircle(tri)
-        plt.plot(center.x, center.y, 'ro')
+        center.append(circumcircle(tri))
 
-    for edge in get_edges_flat(triangles):
-        plt.plot([edge.a.x, edge.b.x], [edge.a.y, edge.b.y], 'g-')
+    fig, ax = plt.subplots(figsize=(10, 8))
+
+    vor = Voronoi(points)
+    voronoi_plot_2d(vor, ax=ax, line_colors='blue',
+                    line_width=1, show_points=False, show_vertices=False)
 
     common_side_triangles = find_common_edges(triangles)
+
     for pair in common_side_triangles:
         center1 = circumcircle(pair[0])
         center2 = circumcircle(pair[1])
         plt.plot([center1.x, center2.x], [center1.y, center2.y], 'r-')
+    # Отрисовка точек
+    ax.scatter([p.x for p in points], [p.y for p in points], color='blue', label='Изначальные точки')
 
-    external_edges = find_external_edges(triangles)
-    for edge in external_edges:
-        mid = midpoint(edge.a, edge.b)
-        for tri in triangles:
-            if edge.a in tri and edge.b in tri:
-                start = circumcircle(tri)
-                plt.plot([mid.x, start.x], [mid.y, start.y], 'r--')
+    ax.scatter([c.x for c in center], [c.y for c in center], label='Центры окружностей', color='red')
 
-    plt.legend()
+    plt.title('Диаграмма Вороного')
+    plt.xlabel('X')
+    plt.ylabel('Y')
     plt.grid(True)
+    plt.legend(loc='upper left')
+
     plt.show()
+
+    # for edge in get_edges_flat(triangles):
+    #     plt.plot([edge.a.x, edge.b.x], [edge.a.y, edge.b.y], 'g-')
+
+    # external_edges = find_external_edges(triangles)
+    # for edge in external_edges:
+    #     mid = midpoint(edge.a, edge.b)
+    #     for tri in triangles:
+    #         if edge.a in tri and edge.b in tri:
+    #             start = circumcircle(tri)
+    #             plt.plot([mid.x, start.x], [mid.y, start.y], 'r--')
 
 
 if __name__ == '__main__':
