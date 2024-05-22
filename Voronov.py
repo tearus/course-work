@@ -1,9 +1,10 @@
 import re
 import matplotlib.pyplot as plt
 from collections import namedtuple
-
 import numpy as np
-from scipy.spatial import Voronoi, voronoi_plot_2d
+from scipy.spatial import Voronoi
+from scipy.spatial._plotutils import _adjust_bounds
+from matplotlib.collections import LineCollection
 
 Point = namedtuple('Point', 'x y')
 Triangle = namedtuple('Triangle', 'v1 v2 v3')
@@ -66,61 +67,7 @@ def find_common_edges(triangles: list[Triangle]) -> list[tuple[Triangle, Triangl
     return result
 
 
-# def get_edges(triangle: Triangle) -> list[Edge]:
-#     return [
-#         Edge(triangle.v1, triangle.v2),
-#         Edge(triangle.v2, triangle.v3),
-#         Edge(triangle.v3, triangle.v1)
-#     ]
-
-
-# def edge_sorted(edge: Edge) -> Edge:
-#     return edge if edge.a < edge.b else Edge(edge.b, edge.a)
-#
-#
-# def get_edges_flat(triangles: list[Triangle]) -> list[Edge]:
-#     edges = [get_edges(triangle) for triangle in triangles]
-#     return reduce(operator.iconcat, edges, [])
-
-
-# def find_external_edges(triangles: list[Triangle]) -> list[Edge]:
-#     edges = get_edges_flat(triangles)
-#     sorted_edges = [edge_sorted(edge) for edge in edges]
-#     unique_edges_set = {tuple(edge) for edge in sorted_edges}
-#     duplicates_count = len(sorted_edges) - len(unique_edges_set)
-#
-#     return [edge for edge in sorted_edges if sorted_edges.count(edge) == 1] \
-#         if duplicates_count > 0 \
-#         else list(edges)
-#
-#
-# def midpoint(point1: Point, point2: Point) -> Point:
-#     return Point((point1.x + point2.x) / 2, (point1.y + point2.y) / 2)
-
-
 def voronoi_finite_polygons_2d(vor, radius=None):
-    """
-    Reconstruct infinite voronoi regions in a 2D diagram to finite
-    regions.
-
-    Parameters
-    ----------
-    vor : Voronoi
-        Input diagram
-    radius : float, optional
-        Distance to 'points at infinity'.
-
-    Returns
-    -------
-    regions : list of tuples
-        Indices of vertices in each revised Voronoi regions.
-    vertices : list of tuples
-        Coordinates for revised Voronoi vertices. Same as coordinates
-        of input vertices, with 'points at infinity' appended to the
-        end.
-
-    """
-
     if vor.points.shape[1] != 2:
         raise ValueError("Requires 2D input")
 
@@ -131,22 +78,18 @@ def voronoi_finite_polygons_2d(vor, radius=None):
     if radius is None:
         radius = vor.points.ptp().max()
 
-    # Construct a map containing all ridges for a given point
     all_ridges = {}
     for (p1, p2), (v1, v2) in zip(vor.ridge_points, vor.ridge_vertices):
         all_ridges.setdefault(p1, []).append((p2, v1, v2))
         all_ridges.setdefault(p2, []).append((p1, v1, v2))
 
-    # Reconstruct infinite regions
     for p1, region in enumerate(vor.point_region):
         vertices = vor.regions[region]
 
         if all(v >= 0 for v in vertices):
-            # finite region
             new_regions.append(vertices)
             continue
 
-        # reconstruct a non-finite region
         ridges = all_ridges[p1]
         new_region = [v for v in vertices if v >= 0]
 
@@ -154,14 +97,11 @@ def voronoi_finite_polygons_2d(vor, radius=None):
             if v2 < 0:
                 v1, v2 = v2, v1
             if v1 >= 0:
-                # finite ridge: already in the region
                 continue
 
-            # Compute the missing endpoint of an infinite ridge
-
-            t = vor.points[p2] - vor.points[p1]  # tangent
+            t = vor.points[p2] - vor.points[p1]
             t /= np.linalg.norm(t)
-            n = np.array([-t[1], t[0]])  # normal
+            n = np.array([-t[1], t[0]])
 
             midpoint = vor.points[[p1, p2]].mean(axis=0)
             direction = np.sign(np.dot(midpoint - center, n)) * n
@@ -170,45 +110,89 @@ def voronoi_finite_polygons_2d(vor, radius=None):
             new_region.append(len(new_vertices))
             new_vertices.append(far_point.tolist())
 
-        # sort region counterclockwise
         vs = np.asarray([new_vertices[v] for v in new_region])
         c = vs.mean(axis=0)
         angles = np.arctan2(vs[:, 1] - c[1], vs[:, 0] - c[0])
         new_region = np.array(new_region)[np.argsort(angles)]
 
-        # finish
         new_regions.append(new_region.tolist())
 
     return new_regions, np.asarray(new_vertices)
 
 
-def main():
-    triangles = read_triangle_coordinates('triangle.txt')
-    points = read_points_from_file('points.txt')
+def voronoi_plot(vor, ax=None, **kw):
+    if vor.points.shape[1] != 2:
+        raise ValueError("Voronoi diagram is not 2-D")
+
+    if kw.get('show_points', True):
+        point_size = kw.get('point_size', None)
+        ax.plot(vor.points[:, 0], vor.points[:, 1], '.', markersize=point_size)
+    if kw.get('show_vertices', True):
+        ax.plot(vor.vertices[:, 0], vor.vertices[:, 1], 'o')
+
+    line_colors = kw.get('line_colors', 'k')
+    line_width = kw.get('line_width', 1.0)
+    line_alpha = kw.get('line_alpha', 1.0)
+
+    center = vor.points.mean(axis=0)
+    ptp_bound = np.ptp(vor.points, axis=0)
+
+    finite_segments = []
+    infinite_segments = []
+    for pointidx, simplex in zip(vor.ridge_points, vor.ridge_vertices):
+        simplex = np.asarray(simplex)
+        if np.all(simplex >= 0):
+            finite_segments.append(vor.vertices[simplex])
+        else:
+            i = simplex[simplex >= 0][0]  # finite end Voronoi vertex
+
+            t = vor.points[pointidx[1]] - vor.points[pointidx[0]]  # tangent
+            t /= np.linalg.norm(t)
+            n = np.array([-t[1], t[0]])  # normal
+
+            midpoint = vor.points[pointidx].mean(axis=0)
+            direction = np.sign(np.dot(midpoint - center, n)) * n
+            if (vor.furthest_site):
+                direction = -direction
+            aspect_factor = abs(ptp_bound.max() / ptp_bound.min())
+            far_point = vor.vertices[i] + direction * ptp_bound.max() * aspect_factor
+
+            infinite_segments.append([vor.vertices[i], far_point])
+
+    ax.add_collection(LineCollection(infinite_segments,
+                                     colors=line_colors,
+                                     lw=line_width,
+                                     alpha=line_alpha,
+                                     linestyle='dashed'))
+
+    _adjust_bounds(ax, vor.points)
+
+    return ax.figure
+
+
+def plot_all(points, triangles, vor):
+    fig, ax = plt.subplots(figsize=(10, 8))
+
     center = []
     for tri in triangles:
         center.append(circumcircle(tri))
 
-    fig, ax = plt.subplots(figsize=(10, 8))
-
-    vor = Voronoi(points)
-    regions, vertices = voronoi_finite_polygons_2d(vor)
-    for region in regions:
-        polygon = vertices[region]
-        plt.fill(*zip(*polygon), alpha=0.4)
-    voronoi_plot_2d(vor, ax=ax, line_colors='blue',
-                    line_width=1, show_points=False, show_vertices=False)
+    voronoi_plot(vor, ax=ax, line_colors='blue',
+                 line_width=1, show_points=False, show_vertices=False)
 
     common_side_triangles = find_common_edges(triangles)
-
     for pair in common_side_triangles:
         center1 = circumcircle(pair[0])
         center2 = circumcircle(pair[1])
         plt.plot([center1.x, center2.x], [center1.y, center2.y], 'r-')
-    # Отрисовка точек
     ax.scatter([p.x for p in points], [p.y for p in points], color='blue', label='Изначальные точки')
 
     ax.scatter([c.x for c in center], [c.y for c in center], label='Центры окружностей', color='red')
+
+    regions, vertices = voronoi_finite_polygons_2d(vor)
+    for region in regions:
+        polygon = vertices[region]
+        plt.fill(*zip(*polygon), alpha=0.4)
 
     plt.title('Диаграмма Вороного')
     plt.xlabel('X')
@@ -218,16 +202,12 @@ def main():
 
     plt.show()
 
-    # for edge in get_edges_flat(triangles):
-    #     plt.plot([edge.a.x, edge.b.x], [edge.a.y, edge.b.y], 'g-')
 
-    # external_edges = find_external_edges(triangles)
-    # for edge in external_edges:
-    #     mid = midpoint(edge.a, edge.b)
-    #     for tri in triangles:
-    #         if edge.a in tri and edge.b in tri:
-    #             start = circumcircle(tri)
-    #             plt.plot([mid.x, start.x], [mid.y, start.y], 'r--')
+def main():
+    triangles = read_triangle_coordinates('triangle.txt')
+    points = read_points_from_file('points.txt')
+    vor = Voronoi(points)
+    plot_all(points, triangles, vor)
 
 
 if __name__ == '__main__':
