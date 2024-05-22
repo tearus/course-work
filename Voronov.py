@@ -144,11 +144,11 @@ def voronoi_plot(vor, ax=None, **kw):
         if np.all(simplex >= 0):
             finite_segments.append(vor.vertices[simplex])
         else:
-            i = simplex[simplex >= 0][0]  # finite end Voronoi vertex
+            i = simplex[simplex >= 0][0]
 
-            t = vor.points[pointidx[1]] - vor.points[pointidx[0]]  # tangent
+            t = vor.points[pointidx[1]] - vor.points[pointidx[0]]
             t /= np.linalg.norm(t)
-            n = np.array([-t[1], t[0]])  # normal
+            n = np.array([-t[1], t[0]])
 
             midpoint = vor.points[pointidx].mean(axis=0)
             direction = np.sign(np.dot(midpoint - center, n)) * n
