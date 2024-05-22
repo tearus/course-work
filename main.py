@@ -6,7 +6,7 @@ from scipy.spatial import Delaunay
 from mpl_toolkits.mplot3d import Axes3D
 
 
-def plot_graph(graph, triangle_type="custom", color=None, adding_circles=True):
+def plot_graph_Delanau2D(graph, triangle_type="custom", color=None, adding_circles=True):
     fig, ax = plt.subplots()
 
     # Рисуем точки
@@ -33,7 +33,12 @@ def plot_graph(graph, triangle_type="custom", color=None, adding_circles=True):
 
     ax.set_xlim(min(point.pos()[0] for point in graph._points), max(point.pos()[0] for point in graph._points))
     ax.set_ylim(min(point.pos()[1] for point in graph._points), max(point.pos()[1] for point in graph._points))
+
     ax.set_aspect('equal')
+    plt.title('Триангуляция Делоне')
+    plt.xlabel('X')
+    plt.ylabel('Y')
+    plt.grid(True)
     plt.show()
 
 
@@ -55,14 +60,14 @@ if __name__ == "__main__":
     points = np.array([[p.pos()[0], p.pos()[1]] for p in graph._points])
     delaunay_sc = Delaunay(points)
 
-    plt.figure(figsize=(10, 5))  # Создаем новую фигуру для пользовательской сетки
-    plot_graph(graph, triangle_type="custom", color='green', adding_circles=False)
-    plot_graph(graph, triangle_type="custom", color='green', adding_circles=True)
+    plt.figure(figsize=(10, 8))  # Создаем новую фигуру для пользовательской сетки
+    plot_graph_Delanau2D(graph, triangle_type="custom", color='green', adding_circles=False)
+    plot_graph_Delanau2D(graph, triangle_type="custom", color='green', adding_circles=True)
 
     # Визуализация триангуляции из scipy
-    plt.figure(figsize=(10, 5))
-    plot_graph(graph, triangle_type="scipy", color='purple', adding_circles=False)
-    plot_graph(graph, triangle_type="scipy", color='purple', adding_circles=True)
+    plt.figure(figsize=(10, 8))
+    plot_graph_Delanau2D(graph, triangle_type="scipy", color='purple', adding_circles=False)
+    plot_graph_Delanau2D(graph, triangle_type="scipy", color='purple', adding_circles=True)
     with open('points.txt', 'w') as file:
         for point in graph._points:
             file.write(str(point.pos()) + '\n')
@@ -82,8 +87,8 @@ tri = Delaunay(points)
 # Визуализация
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
-# Рисование точек
-ax.scatter(points[:, 0], points[:, 1], points[:, 2], alpha=0.5)
+# Отрисовка точек
+ax.scatter(points[:, 0], points[:, 1], points[:, 2])
 
 for s in tri.simplices:
     ax.plot_trisurf(points[s, 0], points[s, 1], points[s, 2], alpha=0.5, linewidths=0, antialiased=False,

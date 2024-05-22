@@ -190,6 +190,7 @@ def main():
         center.append(circumcircle(tri))
 
     fig, ax = plt.subplots(figsize=(10, 8))
+    ax.set_aspect('equal')
 
     vor = Voronoi(points)
     regions, vertices = voronoi_finite_polygons_2d(vor)
@@ -214,8 +215,6 @@ def main():
     plt.xlabel('X')
     plt.ylabel('Y')
     plt.grid(True)
-    plt.legend(loc='upper left')
-
     plt.show()
 
     # for edge in get_edges_flat(triangles):
