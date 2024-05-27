@@ -2,7 +2,7 @@ import re
 import matplotlib.pyplot as plt
 from collections import namedtuple
 import numpy as np
-from scipy.spatial import Voronoi
+from scipy.spatial import Voronoi, voronoi_plot_2d
 from scipy.spatial._plotutils import _adjust_bounds
 from matplotlib.collections import LineCollection
 
@@ -33,7 +33,7 @@ def read_triangle_coordinates(file_path: str) -> list[Triangle]:
     return triangles
 
 
-def circumcircle(tri: Triangle) -> Point:
+def get_circle_center(tri: Triangle) -> Point:
     D = ((tri.v1.x - tri.v3.x) * (tri.v2.y - tri.v3.y) - (tri.v2.x - tri.v3.x) * (tri.v1.y - tri.v3.y))
     center_x = (((tri.v1.x - tri.v3.x) * (tri.v1.x + tri.v3.x) + (tri.v1.y - tri.v3.y) * (
             tri.v1.y + tri.v3.y)) / 2 * (tri.v2.y - tri.v3.y) - (
@@ -120,23 +120,19 @@ def voronoi_finite_polygons_2d(vor, radius=None):
     return new_regions, np.asarray(new_vertices)
 
 
-def voronoi_plot(vor, ax=None, **kw):
+def infinite_edges(vor, ax=None, **kw):
     if vor.points.shape[1] != 2:
         raise ValueError("Voronoi diagram is not 2-D")
-
     if kw.get('show_points', True):
         point_size = kw.get('point_size', None)
         ax.plot(vor.points[:, 0], vor.points[:, 1], '.', markersize=point_size)
     if kw.get('show_vertices', True):
         ax.plot(vor.vertices[:, 0], vor.vertices[:, 1], 'o')
-
     line_colors = kw.get('line_colors', 'k')
     line_width = kw.get('line_width', 1.0)
     line_alpha = kw.get('line_alpha', 1.0)
-
     center = vor.points.mean(axis=0)
     ptp_bound = np.ptp(vor.points, axis=0)
-
     finite_segments = []
     infinite_segments = []
     for pointidx, simplex in zip(vor.ridge_points, vor.ridge_vertices):
@@ -158,15 +154,9 @@ def voronoi_plot(vor, ax=None, **kw):
             far_point = vor.vertices[i] + direction * ptp_bound.max() * aspect_factor
 
             infinite_segments.append([vor.vertices[i], far_point])
-
-    ax.add_collection(LineCollection(infinite_segments,
-                                     colors=line_colors,
-                                     lw=line_width,
-                                     alpha=line_alpha,
+    ax.add_collection(LineCollection(infinite_segments, colors=line_colors, lw=line_width, alpha=line_alpha,
                                      linestyle='dashed'))
-
     _adjust_bounds(ax, vor.points)
-
     return ax.figure
 
 
@@ -175,15 +165,15 @@ def plot_all(points, triangles, vor):
 
     center = []
     for tri in triangles:
-        center.append(circumcircle(tri))
+        center.append(get_circle_center(tri))
 
-    voronoi_plot(vor, ax=ax, line_colors='blue',
-                 line_width=1, show_points=False, show_vertices=False)
+    infinite_edges(vor, ax=ax, line_colors='red',
+                   line_width=1, show_points=False, show_vertices=False)
 
     common_side_triangles = find_common_edges(triangles)
     for pair in common_side_triangles:
-        center1 = circumcircle(pair[0])
-        center2 = circumcircle(pair[1])
+        center1 = get_circle_center(pair[0])
+        center2 = get_circle_center(pair[1])
         plt.plot([center1.x, center2.x], [center1.y, center2.y], 'r-')
     ax.scatter([p.x for p in points], [p.y for p in points], color='blue', label='Изначальные точки')
 
@@ -207,7 +197,15 @@ def main():
     triangles = read_triangle_coordinates('triangle.txt')
     points = read_points_from_file('points.txt')
     vor = Voronoi(points)
-    plot_all(points, triangles, vor)
+    voronoi_plot_2d(vor)
+    plt.title('Диаграмма Вороного')
+    plt.xlabel('X')
+    plt.ylabel('Y')
+    plt.grid(True)
+    plt.legend(loc='upper left')
+
+    plt.show()
+    # plot_all(points, triangles, vor)
 
 
 if __name__ == '__main__':
